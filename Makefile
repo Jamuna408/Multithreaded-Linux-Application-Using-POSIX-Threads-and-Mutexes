@@ -1,8 +1,8 @@
 CC = gcc
-CFLAGS = -Wall -pthread
+CFLAGS = -Wall -pthread -Iinclude
 
-monitor: main.c system_resources.c process_monitor.c
-	$(CC) $(CFLAGS) main.c system_resources.c process_monitor.c -o monitor
+monitor: src/main.c src/system_resources.c src/process_monitor.c
+	$(CC) $(CFLAGS) src/main.c src/system_resources.c src/process_monitor.c -o monitor
 
 clean:
 	rm -f monitor
