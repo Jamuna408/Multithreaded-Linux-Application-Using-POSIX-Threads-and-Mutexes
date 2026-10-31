@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VaultThreads · ATM Resource Manager</title>
+<style>
+:root{--bg:#eef2f6;--card:#fff;--ink:#14213a;--mute:#5d6b82;--line:#d9e0ea;--accent:#1f4e8c;--ok:#1f8a5f;--wait:#c27b0a;--bad:#c0392b;--log:#f6f8fb}
+[data-theme=dark]{--bg:#0e1626;--card:#162238;--ink:#e6ecf7;--mute:#93a3bf;--line:#26354f;--accent:#6aa5f0;--ok:#4cc592;--wait:#f0b54a;--bad:#f1736a;--log:#101b2e}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:14px 24px;background:var(--card);border-bottom:1px solid var(--line)}
+h1{font-size:18px;margin:0;font-weight:700}h1 small{display:block;font-weight:400;color:var(--mute);font-size:12.5px}
+h2{font-size:15px;margin:0 0 12px}
+main{max-width:1180px;margin:0 auto;padding:20px;display:grid;gap:18px}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+.grid{display:grid;gap:14px}.g3{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}.g5{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.g2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.stat b{display:block;font-size:26px;font-variant-numeric:tabular-nums}.stat span{color:var(--mute);font-size:13px}
+.acct .bal{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;margin:4px 0}
+.acct .id{color:var(--mute);font-size:13px}
+.badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12.5px;font-weight:600;border:1px solid}
+.free{color:var(--ok);border-color:var(--ok)}.locked{color:var(--bad);border-color:var(--bad)}.waits{color:var(--wait);border-color:var(--wait)}
+.acct.l{border-color:var(--bad)}.acct.w{border-color:var(--wait)}
+label{display:block;font-size:13px;color:var(--mute);margin:8px 0 3px}
+select,input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink);font:inherit}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:7px}
+button:hover{border-color:var(--accent)}button:focus-visible,select:focus-visible,input:focus-visible,.sw:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+button.pri{background:var(--accent);border-color:var(--accent);color:#fff}[data-theme=dark] button.pri{color:#0e1626}
+button:disabled{opacity:.55;cursor:wait}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sw{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+.sw input{width:auto;position:absolute;opacity:0}
+.sw i{width:40px;height:22px;background:var(--line);border-radius:99px;position:relative;transition:.15s}
+.sw i:after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s}
+.sw input:checked+i{background:var(--ok)}.sw input:checked+i:after{left:21px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bad);display:inline-block}.dot.on{background:var(--ok)}
+.log{background:var(--log);border:1px solid var(--line);border-radius:8px;height:290px;overflow:auto;font:12.5px/1.6 Consolas,Menlo,monospace;padding:8px 10px}
+.log div{white-space:nowrap}.log .t{color:var(--mute)}
+.k-lock{color:var(--bad)}.k-wait{color:var(--wait)}.k-ok{color:var(--ok)}.k-rej{color:var(--bad);font-weight:600}.k-unlock{color:var(--ok)}.k-crit{color:var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}th{color:var(--mute);font-weight:600}
+.pill{font-weight:600}.pill.y{color:var(--ok)}.pill.n{color:var(--bad)}
+.alert{padding:10px 14px;border-radius:8px;border:1px solid var(--bad);color:var(--bad);display:none;font-weight:600}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:8px;opacity:0;transition:.2s;pointer-events:none;max-width:90vw}
+#toast.show{opacity:1}
+.note{color:var(--mute);font-size:13px;margin:0 0 10px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+[hidden]{display:none!important}
+#login{min-height:100vh;display:grid;place-items:center;padding:20px}
+.lc{width:100%;max-width:380px}.lc h1{font-size:24px;margin-bottom:14px}
+.err{color:var(--bad);min-height:20px;font-size:13.5px;margin:8px 0 0}
+#app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+aside{background:var(--card);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
+aside h1{padding:0 10px 14px}
+#nav{display:grid;gap:2px}
+#nav button{text-align:left;border:0;background:none;padding:9px 12px;border-radius:7px;color:var(--mute)}
+#nav button:hover{background:var(--bg);color:var(--ink)}
+#nav button.on{background:var(--accent);color:#fff;font-weight:600}
+[data-theme=dark] #nav button.on{color:#0e1626}
+.sb{margin-top:auto;display:grid;gap:8px}
+#uchip{display:flex;gap:10px;align-items:center;padding:6px 8px}
+#uchip small{display:block;color:var(--mute);font-size:12px}
+.av{width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+[data-theme=dark] .av{color:#0e1626}
+.col{min-width:0}#menu{display:none}
+.prog{height:8px;background:var(--line);border-radius:99px;overflow:hidden}.prog i{display:block;height:100%;background:var(--ok)}
+.neg{color:var(--bad)}.pos{color:var(--ok)}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:8px 12px}.kv span{color:var(--mute)}
+.log{background:var(--log);border:1px solid var(--line);border-radius:8px;height:290px;overflow:auto;font:12.5px/1.6 Consolas,Menlo,monospace;padding:8px 10px}
+.log div{white-space:nowrap}.log .t{color:var(--mute)}
+@media(max-width:800px){#app{grid-template-columns:1fr}aside{position:fixed;z-index:5;width:232px;transform:translateX(-100%);transition:.2s}aside.open{transform:none}#menu{display:inline-block}}
+.pl{color:var(--ok);float:right}.pl.cl{color:var(--bad)}.pl .sh{transform-origin:7px 11px;transition:transform .25s;transform:rotate(-32deg)}.pl.cl .sh{transform:none}
+.acct.fl .bal{animation:fl 1.2s}@keyframes fl{from{background:var(--wait);color:#fff}to{background:none}}
+.tl{display:grid;grid-template-columns:96px 1fr;gap:8px;align-items:center;margin:4px 0;font-size:12.5px}.tr{position:relative;height:16px;background:var(--log);border-radius:4px}.tr i{position:absolute;top:0;bottom:0;border-radius:4px}.tr .w{background:var(--wait)}.tr .h{background:var(--ok)}.tr .h.x{background:var(--bad)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.cmp>div{border:1px solid var(--line);border-radius:8px;padding:12px}.bad{color:var(--bad);font-weight:600}.good{color:var(--ok);font-weight:600}
+</style>
+</head>
+<body>
+<section id="login">
+  <div class="card lc">
+    <h1>VaultThreads <small>Sign in to your bank account</small></h1>
+    <label for="lu">Username</label><input id="lu" autocomplete="username" autofocus>
+    <label for="lp">4-digit PIN</label><input id="lp" type="password" maxlength="4" inputmode="numeric" autocomplete="current-password">
+    <label class="sw" style="margin-top:10px"><input type="checkbox" id="lshow"><i></i><span>Show PIN</span></label>
+    <p class="err" id="lerr" role="alert"></p>
+    <button class="pri" id="lgo0" style="width:100%">Sign in</button>
+    <p class="note" style="margin:14px 0 0">Demo logins: priya / 1111 · arjun / 2222 · admin / 0000</p>
+  </div>
+</section>
+
+<div id="app" hidden>
+  <aside id="side">
+    <h1>VaultThreads <small>ATM &amp; bank resources</small></h1>
+    <nav id="nav"></nav>
+    <div class="sb">
+      <div id="uchip"></div>
+      <button id="theme">Dark mode</button>
+      <button id="logout">Sign out</button>
+    </div>
+  </aside>
+  <div class="col">
+    <header><div class="bar"><button id="menu" aria-label="Open menu">Menu</button><h1 id="pt" style="font-size:20px"></h1></div>
+      <span><i class="dot" id="conn"></i> <span id="connt">connecting…</span></span></header>
+    <main id="view"></main>
+  </div>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const inr=n=>"₹"+Number(n).toLocaleString("en-IN");
+const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const setH=(el,h)=>{if(el&&el._h!==h){el._h=h;el.innerHTML=h}};
+let S=null,TOK=null,PAGE=null,TX=[],lastTotal=-1;
+try{TOK=sessionStorage.getItem("tok")}catch{}
+const toast=m=>{const t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),2800)};
+
+async function api(p,post=true){
+  const r=await fetch(p+(p.includes("?")?"&":"?")+"tok="+TOK,{method:post?"POST":"GET"}),j=await r.json();
+  if(j.err){showLogin();throw 0}return j}
+const call=async url=>{try{const r=await api(url);if(r.msg)toast(r.msg);return r}catch(e){if(e!==0)toast("Backend not reachable. Is the server running?")}};
+
+/* theme */
+document.documentElement.dataset.theme=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";
+const syncTheme=()=>$("#theme").textContent=document.documentElement.dataset.theme==="dark"?"Light mode":"Dark mode";
+$("#theme").onclick=()=>{const d=document.documentElement.dataset;d.theme=d.theme==="dark"?"light":"dark";syncTheme()};syncTheme();
+$("#menu").onclick=()=>$("#side").classList.toggle("open");
+
+/* login / logout */
+$("#lshow").onchange=e=>$("#lp").type=e.target.checked?"text":"password";
+$("#lp").onkeydown=$("#lu").onkeydown=e=>{if(e.key==="Enter")doLogin()};
+$("#lgo0").onclick=doLogin;
+async function doLogin(){
+  $("#lerr").textContent="";
+  try{const r=await (await fetch(`/api/login?u=${encodeURIComponent($("#lu").value.trim().toLowerCase())}&p=${encodeURIComponent($("#lp").value)}`,{method:"POST"})).json();
+    if(!r.ok){$("#lerr").textContent=r.msg+". Check the demo logins below and try again.";return}
+    TOK=r.tok;try{sessionStorage.setItem("tok",TOK)}catch{}$("#lp").value="";boot()}
+  catch{$("#lerr").textContent="Cannot reach the server. Start server.exe and reload this page."}}
+function showLogin(){TOK=null;try{sessionStorage.removeItem("tok")}catch{}$("#app").hidden=true;$("#login").hidden=false}
+$("#logout").onclick=async()=>{try{await api("/api/logout")}catch{}showLogin();toast("Signed out")};
+
+/* shared helpers */
+const accOpts=()=>S.accounts.map(a=>`<option value="${a.id}">#${a.id} · ${a.name}</option>`).join("");
+const lockInfo=a=>a.owner?["locked","Locked by "+(a.owner===3?"online banking":"ATM "+a.owner)]:a.waiting?["waits","Waiting"]:["free","Mutex free"];
+const PB={},PF={};
+const lockSvg=l=>`<svg class="pl ${l?"cl":""}" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path class="sh" d="M7 11V7a5 5 0 0 1 10 0v4"/><rect x="4" y="11" width="16" height="10" rx="2"/></svg>`;
+const acctCard=a=>{const st=lockInfo(a),mm=a.bal!==a.audit;if(PB[a.id]!==undefined&&PB[a.id]!==a.bal)PF[a.id]=Date.now();PB[a.id]=a.bal;
+return `<div class="card acct ${a.owner?"l":a.waiting?"w":""} ${Date.now()-(PF[a.id]||0)<1200?"fl":""}">${lockSvg(a.owner)}<div class="id">#${a.id} · ${a.name}</div><div class="bal">${inr(a.bal)}</div><span class="badge ${st[0]}">${st[1]}</span>${a.waiting?` <span class="badge waits">${a.waiting} waiting</span>`:""}${mm?`<div class="note" style="color:var(--bad);margin:8px 0 0">Audit total says ${inr(a.audit)}</div>`:""}</div>`};
+const txRows=r=>r.length?r.map(x=>`<tr><td>${x.w}</td><td>${esc(x.d)}<div class="note" style="margin:0">${x.k} · #${x.a}</div></td><td class="${x.amt<0?"neg":"pos"}" style="text-align:right">${x.amt<0?"−":"+"}${inr(Math.abs(x.amt))}</td><td style="text-align:right">${inr(x.bal)}</td></tr>`).join(""):`<tr><td colspan="4" class="note">No transactions yet. Withdraw cash or pay a bill and it appears here.</td></tr>`;
+const txHead=`<thead><tr><th>Date</th><th>Details</th><th style="text-align:right">Amount</th><th style="text-align:right">Balance</th></tr></thead>`;
+function renderLog(el){if(!el||el._s===S.seq)return;el._s=S.seq;el.innerHTML=S.log.slice().reverse().map(e=>`<div class="k-${e.k}"><span class="t">${e.t}</span> ${e.tid?"T"+e.tid+" ":""}${e.m}</div>`).join("")||'<span class="t">Waiting for activity…</span>'}
+const logCard=h=>`<section class="card"><h2>Live thread and mutex log</h2><div class="log" id="alog" style="height:${h}px"></div></section>`;
+
+/* pages */
+const P={},BILLS=[["Electricity","TGSPDCL",1850],["Water","HMWSSB",420],["Mobile recharge","Jio",599],["Broadband","ACT Fibernet",799],["DTH","Tata Play",350]];
+const RW=[["₹50 cashback",100,50],["₹250 cashback",450,250],["₹500 cashback",800,500]];
+
+P.overview={t:"Overview",
+ html:()=>`<section><h2>Welcome back, ${esc(S.me.name.split(" ")[0])}</h2><div class="grid g3" id="oa"></div></section>
+ <section class="grid g3"><div class="card stat"><b id="op">0</b><span>Reward points</span></div><div class="card stat"><b id="ol">None</b><span>Loan outstanding</span></div>
+ <div class="card"><h2>Quick actions</h2><div class="bar"><button class="pri" data-go="bills">Pay a bill</button><button data-go="atm">Use ATM</button><button data-go="loans">Get a loan</button></div></div></section>
+ <section class="card"><h2>Recent transactions</h2><table>${txHead}<tbody id="orc"></tbody></table></section>`,
+ upd:()=>{setH($("#oa"),S.accounts.map(acctCard).join(""));$("#op").textContent=S.me.pts;$("#ol").textContent=S.me.loan>0?inr(S.me.loan):"None";setH($("#orc"),txRows(TX.slice(0,5)))}};
+
+const ATM=n=>`<div class="card"><h2>ATM ${n}</h2><div class="row"><div><label>Transaction</label><select class="ty"><option value="withdraw">Withdraw</option><option value="deposit">Deposit</option><option value="transfer">Transfer</option></select></div>
+<div><label>Account</label><select class="ac">${accOpts()}</select></div></div>
+<div class="row"><div><label>Amount (₹)</label><input class="am" type="number" min="1" value="1000"></div><div class="tw" style="visibility:hidden"><label>Transfer to account #</label><input class="to" type="number" placeholder="e.g. 1003"></div></div>
+<label>Processing time (ms)</label><input class="ho" type="number" min="0" max="8000" value="2000">
+<p class="note" style="margin:10px 0 0">Send from both ATMs on the same account within a couple of seconds to watch one thread wait.</p>
+<button class="pri go" data-n="${n}" style="margin-top:10px">Send from ATM ${n}</button></div>`;
+P.atm={t:"ATM terminal",
+ html:()=>`<section class="grid g2" id="atms">${ATM(1)+ATM(2)}</section>${logCard(210)}`,
+ init:()=>$$("#atms .card").forEach(c=>{const ty=c.querySelector(".ty");ty.onchange=()=>c.querySelector(".tw").style.visibility=ty.value==="transfer"?"visible":"hidden"}),
+ upd:()=>renderLog($("#alog"))};
+
+P.txns={t:S=>S&&S.me.admin?"All transactions":"Transactions",
+ html:()=>`<section class="card"><div class="bar"><div style="width:230px"><label>Account</label><select id="fa"><option value="0">All accounts</option>${accOpts()}</select></div>
+ <div style="width:170px"><label>Show</label><select id="fk"><option value="all">All</option><option value="in">Money in</option><option value="out">Money out</option></select></div>
+ <button id="csv" style="margin-top:22px">Download CSV</button></div></section>
+ <section class="card"><table>${txHead}<tbody id="tb"></tbody></table></section>`,
+ rows:()=>{const a=+$("#fa").value,k=$("#fk").value;return TX.filter(x=>(!a||x.a===a)&&(k==="all"||(k==="in"?x.amt>0:x.amt<0)))},
+ upd:()=>setH($("#tb"),txRows(P.txns.rows()))};
+
+P.bills={t:"Pay bills",
+ html:()=>`<section class="card"><div style="max-width:320px"><label>Pay from</label><select id="bacc">${accOpts()}</select></div><p class="note" style="margin:10px 0 0">Every payment runs as its own thread and takes the account mutex. You earn 1 reward point per ₹100.</p></section><section class="grid g3" id="bg"></section>`,
+ upd:()=>setH($("#bg"),BILLS.map(([n,p,a],i)=>{const paid=TX.some(t=>t.d==="Bill: "+n);return `<div class="card"><h2>${n}</h2><div class="note" style="margin:0">${p}</div><div class="bal" style="font-size:24px;font-weight:700;margin:6px 0">${inr(a)}</div>${paid?'<span class="badge free">Paid</span>':`<button class="pri" data-bill="${i}">Pay now</button>`}</div>`}).join(""))};
+
+P.loans={t:"Loans",
+ html:()=>`<section class="card" id="lapply"><h2>Quick personal loan</h2><p class="note">10% flat interest, repaid in 6 monthly instalments. The money is credited to your account straight away.</p>
+ <label>Loan amount: <b id="lamt"></b></label><input id="lr" type="range" min="10000" max="100000" step="5000" value="30000">
+ <div class="grid g5" style="margin-top:12px"><div class="stat"><b id="ltot">0</b><span>Total payable</span></div><div class="stat"><b id="lemi">0</b><span>Monthly EMI</span></div></div>
+ <button class="pri" id="lgo" style="margin-top:12px">Apply and get the money</button></section><section class="card" id="lact" hidden></section>`,
+ init:()=>{const f=()=>{const a=+$("#lr").value,t=Math.round(a*1.1);$("#lamt").textContent=inr(a);$("#ltot").textContent=inr(t);$("#lemi").textContent=inr(Math.ceil(t/6))};$("#lr").oninput=f;f()},
+ upd:()=>{const m=S.me,act=m.loan>0;$("#lapply").hidden=act;$("#lact").hidden=!act;
+  if(act){const left=Math.ceil(m.loan/m.emi);setH($("#lact"),`<h2>Active loan</h2><div class="grid g5"><div class="stat"><b>${inr(m.loan)}</b><span>Outstanding</span></div><div class="stat"><b>${inr(m.emi)}</b><span>Monthly EMI</span></div><div class="stat"><b>${left}</b><span>Instalments left</span></div></div><div class="prog" style="margin:14px 0"><i style="width:${(6-left)/6*100}%"></i></div><button class="pri" data-emi="1">Pay this month's EMI</button>`)}}};
+
+P.rewards={t:"Rewards",
+ html:()=>`<section class="card"><div class="stat"><b id="rp">0</b><span>Points available</span></div><p class="note" style="margin:8px 0 0">Earn 1 point for every ₹100 you spend on bills and transfers. Cashback is credited to your account.</p></section><section class="grid g3" id="rg"></section>`,
+ upd:()=>{$("#rp").textContent=S.me.pts;setH($("#rg"),RW.map(([n,c],i)=>`<div class="card"><h2>${n}</h2><p class="note">${c} points</p><button class="pri" data-rd="${i}" ${S.me.pts<c?"disabled":""}>${S.me.pts<c?"Need "+(c-S.me.pts)+" more points":"Redeem"}</button></div>`).join(""))}};
+
+P.profile={t:"Profile",
+ html:()=>{const m=S.me;return `<section class="grid g2"><div class="card"><h2>Account holder</h2><div class="kv"><span>Name</span><b>${esc(m.name)}</b><span>Username</span><b>${esc(m.u)}</b><span>Phone</span><b>${esc(m.phone)}</b><span>Branch</span><b>${esc(m.branch)}</b><span>Accounts</span><b>${m.admin?"All accounts":S.accounts.map(a=>"#"+a.id).join(", ")}</b></div></div>
+ <div class="card"><h2>Change PIN</h2><label>Current PIN</label><input id="po" type="password" maxlength="4" inputmode="numeric"><label>New 4-digit PIN</label><input id="pn" type="password" maxlength="4" inputmode="numeric"><button class="pri" id="ps" style="margin-top:12px">Update PIN</button></div></section>`}};
+
+P.monitor={t:"Thread monitor",
+ html:()=>`<div class="alert" id="alert">Race condition detected: a balance no longer matches the audited total of approved transactions.</div>
+ <section class="card"><div class="bar" style="justify-content:space-between"><h2 style="margin:0">Synchronization</h2><label class="sw" style="margin:0"><input type="checkbox" id="sync"><i></i><span id="synct"></span></label></div><p class="note" style="margin:8px 0 0">Turn the mutex off, then run the race demo to see a real race condition. Turn it back on to compare.</p></section>
+ <section class="grid g5" id="stats"></section><section><h2>Shared bank accounts</h2><div class="grid g3" id="accts"></div></section>
+ <section class="card"><h2>Race demo</h2><div class="bar"><div style="width:190px"><label>Account</label><select id="rA">${accOpts()}</select></div><div style="width:120px"><label>ATM 1 (₹)</label><input id="rx" type="number" value="7000"></div><div style="width:120px"><label>ATM 2 (₹)</label><input id="ry" type="number" value="5000"></div><div style="width:130px"><label>Processing (ms)</label><input id="rh" type="number" value="2500"></div><button class="pri" id="race" style="margin-top:22px">Run two simultaneous withdrawals</button></div></section>
+ <section class="card"><h2>Thread timeline</h2><div id="tl"></div></section>
+ <section class="card"><h2>OS labs (run on the admin-only Race Lab accounts)</h2><p class="note">Customer balances are never touched by these experiments.</p>
+ <div class="bar"><button class="pri" id="cmp">Compare: mutex on vs off</button><button id="dl0">Deadlock: naive locking</button><button id="dl1">Deadlock: ordered locking</button></div>
+ <div class="bar" style="margin-top:10px"><div style="width:110px"><label>Threads</label><input id="sn" type="number" value="40" min="2" max="100"></div><button id="st1" style="margin-top:22px">Stress test (mutex on)</button><button id="st0" style="margin-top:22px">Stress test (mutex off)</button>
+ <div style="width:150px;margin-left:16px"><label>Dispenser channels (semaphore)</label><input id="ch" type="number" value="2" min="1" max="5"></div><button id="chb" style="margin-top:22px">Set</button><span id="dn" class="note" style="margin-top:22px"></span></div>
+ <div id="labout"></div></section>
+ ${logCard(300)}<div style="text-align:right"><button id="rst">Reset all accounts</button></div>`,
+ init:()=>{$("#rA").value=9001;$("#sync").onchange=e=>call("/api/sync?on="+(e.target.checked?1:0))},
+ upd:()=>{$("#sync").checked=!!S.sync;$("#synct").textContent=S.sync?"Mutex on":"Mutex off";
+  setH($("#stats"),[["Active threads",S.active],["Waiting threads",S.waiting],["Transactions",S.total],["Approved",S.ok],["Rejected",S.rej]].map(([l,v])=>`<div class="card stat"><b>${v}</b><span>${l}</span></div>`).join(""));
+  setH($("#accts"),S.accounts.map(acctCard).join(""));$("#alert").style.display=S.accounts.some(a=>a.bal!==a.audit)?"block":"none";setH($("#tl"),tlHtml());$("#dn").textContent=`Dispenser: ${S.disp.use}/${S.disp.n} channels busy`;renderLog($("#alog"))}};
+
+function tlHtml(){const T=S.tl||[];if(!T.length)return '<p class="note">Run a race, the comparison or a stress test to see each thread as a bar.</p>';
+ const t0=Math.min(...T.map(x=>x.req)),W=Math.max(Math.max(...T.map(x=>x.rel))-t0,.5),p=v=>(v-t0)/W*100;
+ return T.map(x=>`<div class="tl"><span>T${x.tid} · ATM ${x.atm}</span><div class="tr"><i class="w" style="left:${p(x.req)}%;width:${p(x.acq)-p(x.req)}%"></i><i class="h ${x.ok?"":"x"}" style="left:${p(x.acq)}%;width:${Math.max(p(x.rel)-p(x.acq),.8)}%"></i></div></div>`).join("")+'<p class="note"><b style="color:var(--wait)">Amber</b> = waiting for the mutex · <b style="color:var(--ok)">Green</b> = holding it (red if rejected)</p>'}
+const cmpCol=(t,r,on)=>`<div><b>${t}</b><p style="margin:6px 0">Final balance: <b>${inr(r.bal)}</b><br>Audited total: ${inr(r.audit)}</p><p class="${r.bal===r.audit?"good":"bad"}">${r.bal===r.audit?"Consistent":"Inconsistent: a race condition corrupted the balance"}</p><div class="note">${r.msgs.map(esc).join("<br>")}</div></div>`;
+/* one delegated click handler for every page */
+$("#view").onclick=async e=>{
+  const b=e.target.closest("button");if(!b||b.disabled)return;const d=b.dataset,q=k=>b.closest(".card").querySelector(k).value;
+  if(d.go)return go(d.go);
+  b.disabled=true;
+  try{
+  if(d.bill)await call(`/api/bill?name=${encodeURIComponent(BILLS[d.bill][0])}&amount=${BILLS[d.bill][2]}&acct=${$("#bacc").value}&hold=700`);
+  else if(d.emi)await call("/api/emi?hold=600");
+  else if(d.rd)await call("/api/redeem?r="+d.rd);
+  else if(b.id==="lgo")await call("/api/loan?amount="+$("#lr").value);
+  else if(b.id==="ps"){const r=await call(`/api/pin?old=${encodeURIComponent($("#po").value)}&new=${encodeURIComponent($("#pn").value)}`);if(r&&r.ok)$("#po").value=$("#pn").value=""}
+  else if(b.id==="csv"){const rows=[["Date","Account","Type","Details","Amount","Balance"],...P.txns.rows().map(x=>[x.w,x.a,x.k,x.d,x.amt,x.bal])];
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([rows.map(r=>r.map(v=>`"${v}"`).join(",")).join("\n")],{type:"text/csv"}));a.download="transactions.csv";a.click()}
+  else if(b.id==="race"){const r=await call(`/api/race?acct=${$("#rA").value}&a=${$("#rx").value}&b=${$("#ry").value}&hold=${$("#rh").value}`);if(r)toast("Race finished: both threads joined")}
+  else if(b.id==="cmp"){$("#labout").innerHTML='<p class="note">Running both experiments…</p>';const r=await api("/api/compare?hold=1500");$("#labout").innerHTML=`<div class="cmp">${cmpCol("Mutex on",r.on)}${cmpCol("Mutex off",r.off)}</div>`}
+  else if(b.id==="dl0"||b.id==="dl1"){$("#labout").innerHTML='<p class="note">Two opposite transfers are running. A deadlock takes about 3 seconds to detect…</p>';const r=await api("/api/deadlock?ordered="+(b.id==="dl1"?1:0));$("#labout").innerHTML=`<p><b>${b.id==="dl1"?"Ordered locking":"Naive locking"}</b></p><div class="note">${r.msgs.map(esc).join("<br>")}</div>`}
+  else if(b.id==="st1"||b.id==="st0"){$("#labout").innerHTML='<p class="note">Running the stress test…</p>';const r=await api(`/api/stress?n=${$("#sn").value}&sync=${b.id==="st1"?1:0}`);$("#labout").innerHTML=`<p><b>${r.n} threads</b>: ${r.ok} approved, ${r.rej} rejected. <span class="${r.consistent?"good":"bad"}">${r.consistent?"Balances match the audit totals":"Balances do NOT match the audit totals (race condition)"}</span></p><div class="note">${r.accounts.map(a=>`#${a.id}: balance ${inr(a.bal)}, audit ${inr(a.audit)}`).join("<br>")}</div>`}
+  else if(b.id==="chb")await call("/api/config?channels="+$("#ch").value);
+  else if(b.id==="rst")await call("/api/reset").then(()=>toast("Accounts reset to starting balances"));
+  else if(d.n){const t=q(".ty");const r=await call(`/api/tx?atm=${d.n}&type=${t}&acct=${q(".ac")}&to=${q(".to")||0}&amount=${q(".am")}&hold=${q(".ho")}`)}
+  }finally{b.disabled=false}};
+
+/* navigation + boot */
+const NAV={user:[["overview","Overview"],["atm","ATM terminal"],["txns","Transactions"],["bills","Pay bills"],["loans","Loans"],["rewards","Rewards"],["profile","Profile"]],
+  admin:[["monitor","Thread monitor"],["atm","ATM terminal"],["txns","All transactions"],["profile","Profile"]]};
+$("#nav").onclick=e=>{const p=e.target.dataset.p;if(p)go(p)};
+function go(p){PAGE=p;const pg=P[p];$("#pt").textContent=typeof pg.t==="function"?pg.t(S):pg.t;
+  $("#view").innerHTML=pg.html();pg.init&&pg.init();pg.upd&&pg.upd();
+  $$("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.p===p));$("#side").classList.remove("open");window.scrollTo(0,0)}
+async function refreshTX(){TX=(await api("/api/txs",false)).t}
+async function boot(){
+  if(!TOK)return;
+  try{S=await api("/api/state",false)}catch{return}
+  const m=S.me;lastTotal=-1;await refreshTX();
+  $("#nav").innerHTML=NAV[m.admin?"admin":"user"].map(([k,l])=>`<button data-p="${k}">${l}</button>`).join("");
+  $("#uchip").innerHTML=`<span class="av">${m.name.split(" ").map(w=>w[0]).join("").slice(0,2)}</span><span><b>${esc(m.name)}</b><small>${m.admin?"Administrator":"Customer · #"+m.acct}</small></span>`;
+  $("#login").hidden=true;$("#app").hidden=false;go(m.admin?"monitor":"overview")}
+async function poll(){
+  if(!TOK)return;
+  try{S=await api("/api/state",false);$("#conn").className="dot on";$("#connt").textContent="backend connected";
+    if(S.total!==lastTotal){lastTotal=S.total;await refreshTX()}
+    if(PAGE&&!$("#app").hidden)P[PAGE].upd&&P[PAGE].upd()}
+  catch(e){if(e!==0){$("#conn").className="dot";$("#connt").textContent="backend offline"}}}
+setInterval(poll,350);boot();
+</script>
+</body>
+</html>
